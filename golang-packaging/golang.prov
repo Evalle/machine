@@ -1,0 +1,129 @@
+#!/usr/bin/env ruby
+
+def prepare()
+
+	specfile = Dir.glob("/home/abuild/rpmbuild/SOURCES/*.spec")[0]
+	#specfile = Dir.glob(`pwd`.gsub(/\n/,'') + "/*.spec")[0]
+
+	importpath,pkgname,version = "","",""
+
+	File.open(specfile) do |f|
+
+		f.each_line do |l|
+
+			build_found = 0
+
+			if l.index("Source:") then
+
+				unless l.index("%{name}") then
+
+					pkgname = l.gsub(/Source:/,'').lstrip!.chomp!.gsub(/^.*\//,'').gsub(/-%.*$/,'')
+
+					build_found = 1
+
+				end
+
+			end
+
+                        if (build_found == 0 && l.index("Name:")) then
+
+                                pkgname = l.gsub(/Name:/,'').lstrip!.chomp!.gsub(/^(go|golang)-/,'')
+
+                        end
+
+                        if l.index("Version:") then
+
+                                version = l.gsub(/Version:/,'').lstrip!.chomp!
+
+                        end
+
+			found = 0
+
+			if l.index(/%(define|global)[\s]+(import_path|importpath)/i) then
+
+				importpath = l.gsub(/%(define|global)[\s]+(import_path|importpath)/i,'').lstrip!.chomp!.gsub(/"/,'').gsub(/"/,'')
+
+				found = 1
+
+			end
+
+			if (found == 0 && l.index("%goprep")) then 
+
+				importpath = l.gsub(/%goprep/,'').lstrip!.chomp!
+
+				found = 1
+
+			end
+
+			if (found == 0 && l.index("Url:")) then
+
+				importpath = l.gsub(/Url\:/,'').lstrip!.chomp!.gsub(/^(http|https)\:\/\//,'')
+
+			end
+
+		end
+
+	end
+
+        build = Dir.glob("/home/abuild/rpmbuild/BUILD/*#{pkgname}*")[0]
+        #build = Dir.glob(`pwd`.gsub(/\n/,'') + "/*#{pkgname}*")[0]
+
+	return importpath,build,version
+
+end
+
+def all_dir(dir="",result=nil)
+
+	result = [] unless result
+
+	Dir.entries(dir).each do |d|
+
+		unless (d == "." || d == ".." || d.index("example") || d.index("test")) then
+
+                        if File.directory?("#{dir}/#{d}") then
+
+				result << "#{dir}/#{d}"
+
+                                all_dir("#{dir}/#{d}",result)
+
+                        end
+
+		end
+
+	end
+
+	return result
+
+end
+
+def get_provides_list()
+
+	importpath = prepare()[0]
+
+	build = prepare()[1]
+
+	version = prepare()[2]
+
+	source,list = [],[]
+
+	# all_dir return strings containing build, replace w/ importpath
+
+	all_dir(build).each do |r|
+
+		source << importpath + r.gsub(build,'')
+
+	end
+
+	list << "golang(" + importpath + ") = " + version
+
+	source.each do |s|
+
+		list << "golang(" + s + ") = " + version
+
+	end
+
+	return list
+
+end
+
+puts get_provides_list()

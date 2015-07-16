@@ -1,0 +1,150 @@
+#!/usr/bin/env ruby
+
+def find_build_directory()
+
+	path = "/home/abuild/rpmbuild/SOURCES"
+	#path = `pwd`.gsub(/\n/,'')
+
+	specfile = Dir.glob(path + "/*.spec")[0]
+
+	pkgname = ""
+
+	File.open(specfile) do |f|
+
+		f.each_line do |l|
+
+			build_found = 0
+
+                        if l.index("Source:") then
+
+                                unless l.index("%{name}") then
+
+                                        pkgname = l.gsub(/Source:/,'').lstrip!.chomp!.gsub(/^.*\//,'').gsub(/-%.*$/,'')
+
+                                        build_found = 1
+
+                                end
+
+                        end
+
+                        if (build_found == 0 && l.index("Name:")) then
+
+                                pkgname = l.gsub(/Name:/,'').lstrip!.chomp!.gsub(/^(go|golang)-/,'')
+
+                        end
+
+		end
+
+	end
+
+	build = Dir.glob("/home/abuild/rpmbuild/BUILD/*#{pkgname}*")[0]
+	#build = Dir.glob(path + "/*#{pkgname}*")[0]
+
+	return build
+
+end
+
+def all_file(dir="",result=nil)
+
+	result = [] unless result
+
+	Dir.entries(dir).each do |d|
+
+		unless (d == "." || d == ".." || d.index("example") || d.index("test")) then
+
+			if File.directory?("#{dir}/#{d}") then
+
+				all_file("#{dir}/#{d}",result)
+
+			else
+
+				if ( d.index(".go") && ! d.index(/(test|example)/) ) then
+
+					result << "#{dir}/#{d}"
+
+				end
+
+			end
+
+		end
+
+	end
+
+	return result
+
+end
+
+def get_imports_list()
+
+	build = find_build_directory()
+
+	source = all_file(build)
+
+	list,importlist = [],[]
+
+	own = `/usr/lib/rpm/golang.prov`.split(/\n/)[0].gsub(/golang\(/,'').gsub(/\)[\s]+=.*/,'')
+	#own = `./golang.prov`.split(/\n/)[0].gsub(/golang\(/,'').gsub(/\)[\s]+=.*/,'')
+
+	source.each do |g|
+
+		File.open(g,:encoding => "UTF-8") do |f|
+
+			f.each_line do |l|
+
+				# import should be the first word in a line, or it could be comment
+
+				if l.index(/^import/) then
+
+					if l.index(/({|\()/)then
+
+						t = ""
+	
+						f.each_line do |l1|
+
+							t = t + l1
+
+							# we don't need that much, just a few lines, not whole text
+							break if l1.index(/\)/)
+
+						end
+
+						imports = t.gsub(/(\n|\t)/,'').gsub(/(\)|}).*$/,'').split(/"/)
+
+						imports.each do |i|
+
+							list << i if ( i.index(/(\.com|\.net|\.org)/) && ! i.index(own) )
+
+						end
+
+					else
+
+
+						list << l.gsub(/import/,'').gsub(/"/,'').lstrip!.chomp!.gsub(/.*[\s]+/,'') if ( l.index(/(\.com|\.net|\.org)/) && ! l.index(own) )
+
+					end
+
+				end
+
+			end
+
+		end
+
+	end
+
+	unless list == nil then
+
+		list.uniq.each do |l|
+
+			importlist << "golang(" + l + ")"
+
+		end
+
+	end
+
+	importlist << "golang(API) = 1.4"
+
+	return importlist
+
+end
+
+puts get_imports_list()
