@@ -15,17 +15,18 @@
 # Please submit bugfixes or comments via http://bugs.opensuse.org/
 #
 
-Name:       docker-machine
-Version:    0.3
-Release:    0
-License:    Apache-2.0
-Summary:    Machine management for container-centric world
-Url:        https://docs.docker.com/machine
-Group:      System/Management
-Source:     %{name}-%{version}.tar.bz2
-Patch:
-BuildRequires:
-PreReq:
+%define         go_arches %ix86 x86_64
+Name:           docker_machine
+Version:        0.3.0
+Release:        0
+License:        Apache-2.0
+Summary:        Machine management for container-centric world
+Url:            https://docs.docker.com/machine
+Group:          System/Management
+Source:         %{name}-%{version}.tar.bz2
+Source1:        suse.go
+BuildRequires:  
+PreReq:         %fillup_prepreq
 Provides:
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 
