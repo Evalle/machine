@@ -23,31 +23,42 @@ License:        Apache-2.0
 Summary:        Machine management for container-centric world
 Url:            https://docs.docker.com/machine
 Group:          System/Management
-Source:         %{name}-%{version}.tar.bz2
+Source:         %{name}-%{version}.tar.gz
 Source1:        suse.go
-BuildRequires:  
+BuildRequires:  bash-completion
+BuildRequires:  device-mapper-devel >= 1.2.68
+BuildRequires:  glibc-devel-static
+%ifarch %go_arches
+BuildRequires:  go >= 1.4
+BuildRequires:  go-go-md2man
+%else
+BuildRequires:  gcc5-go >= 5.0
+BuildRequires:  libapparmor-devel
+BuildRequires:  procps
+BuildRequires:  sqlite3-devel
+BuildRequires:  zsh
+Requires:       e2fsprogs
+Requires:       procps
+Requires:       bash-completion
+Requires:       tar >= 1.26
+Requires:       xz  >= 4.9
 PreReq:         %fillup_prepreq
-Provides:
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 
 %description
-
+blah blah
 %prep
-%setup -q
+%setup -q -n docker_machine%{version}
 
 %build
-%configure
-make %{?_smp_mflags}
+%ifnarch %go_arches
+mkdir /tmp/dirty-hack
+ln -s /usr/bin/go-5 /tmp/dirty-hack/go
+export PATH=/tmp/dirty-hack:$PATH
+%endif
 
 %install
-make install DESTDIR=%{buildroot} %{?_smp_mflags}
+install -d %{buildroot}%{go_contribdir}
+install -d %{buildroot}%{_bindir} 
 
-%post
-
-%postun
-
-%files
 %defattr(-,root,root)
-%doc ChangeLog README COPYING
-
-
